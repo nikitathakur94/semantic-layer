@@ -1,0 +1,13 @@
+.venv/
+.env
+.env.*
+!.env.example
+.idea/
+__pycache__/
+.pytest_cache/
+data/
+*.duckdb*
+target/
+logs/
+dbt_packages/
+.DS_Store
