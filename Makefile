@@ -34,3 +34,32 @@ test:
 
 app:
 	$(BIN)/streamlit run app.py --server.address 127.0.0.1 --server.port $(PORT) --server.headless true --browser.gatherUsageStats false
+
+# Optional local Airflow learning environment; separate from the dbt environment.
+AIRFLOW_PORT ?= 8080
+export AIRFLOW_PORT
+AIRFLOW := $(BIN)/python orchestration/run.py
+.PHONY: airflow-setup airflow airflow-check airflow-trigger airflow-status airflow-test
+airflow-setup:
+	$(PYTHON) -c 'import sys; assert sys.version_info[:2] == (3, 12), "Python 3.12 required"'
+	$(PYTHON) -m venv .airflow-venv
+	.airflow-venv/bin/python -m pip install -r orchestration/requirements.txt --constraint orchestration/constraints-3.12.txt
+	.airflow-venv/bin/python -m pip check
+	$(AIRFLOW) db migrate
+	$(AIRFLOW) check
+
+airflow:
+	$(AIRFLOW) standalone
+
+airflow-check:
+	$(AIRFLOW) check
+
+airflow-trigger:
+	$(AIRFLOW) dags unpause distribution_dbt
+	$(AIRFLOW) dags trigger distribution_dbt
+
+airflow-status:
+	$(AIRFLOW) dags list-runs distribution_dbt
+
+airflow-test:
+	$(AIRFLOW) dags test distribution_dbt

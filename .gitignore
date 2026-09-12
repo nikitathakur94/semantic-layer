@@ -13,3 +13,5 @@ dbt_packages/
 .DS_Store
 
 .user.yml
+.airflow/
+.airflow-venv/

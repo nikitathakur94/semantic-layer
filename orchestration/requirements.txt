@@ -1,0 +1,5 @@
+# Install with the adjacent official Apache constraints for Python 3.12.
+apache-airflow==3.3.1
+apache-airflow-providers-standard==1.17.0
+
+graphviz==0.21

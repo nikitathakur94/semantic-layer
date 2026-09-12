@@ -43,6 +43,24 @@ mf query --metrics gross_sales,redemptions_to_sales_ratio \
 mf query --metrics reported_net_assets --explain
 ```
 
+## Optional: run the pipeline through Airflow
+
+```bash
+make airflow-setup
+make airflow
+# In another terminal:
+make airflow-trigger
+make airflow-status
+```
+
+Open [Airflow](http://localhost:8080). Username: `learner`. Read the generated
+password from `.airflow/simple_auth_manager_passwords.json.generated` after the
+first startup. Open the `distribution_dbt` DAG and its Graph view. Keep the server
+terminal open; Ctrl-C stops it. Use `make airflow AIRFLOW_PORT=8081` for another port.
+
+Follow the [Airflow walkthrough](docs/airflow.md) to explore tasks, retries and logs.
+Do not run `make refresh` or `make test` while an Airflow run is writing DuckDB.
+
 ## Folder map / 2–3 hour walkthrough
 
 | Path | Open or run |
@@ -55,7 +73,8 @@ mf query --metrics reported_net_assets --explain
 | `tests/reference/`, `tests/fixture.py`, `scripts/golden.py` | 25 min: run and inspect golden checks |
 | [Architecture](docs/architecture.md), [modeling decisions](docs/semantics.md) | Reference while reading |
 | [Verification record](docs/verification.md) | Review results from the completed local run |
-| `data/`, `target/`, `logs/`, `.venv/`, `.env` | Generated/ignored local files |
+| `orchestration/dags/distribution_dbt.py`, [Airflow guide](docs/airflow.md) | Optional: run the workflow and explore task logs |
+| `data/`, `target/`, `logs/`, `.venv/`, `.env`, `.airflow/`, `.airflow-venv/` | Generated/ignored local files |
 
 ## Troubleshooting
 

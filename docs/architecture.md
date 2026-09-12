@@ -2,6 +2,9 @@
 
 ```mermaid
 flowchart LR
+    AF[Airflow: manual distribution_dbt DAG] -.->|Run ingestion| CACHE
+    AF -.->|Build and test models| STAGE
+    AF -.->|Golden questions and app check| MF
     SEC[SEC 2025 Q4 ZIP] -->|Identifying User-Agent; retries| CACHE[Cached ZIP + source manifest]
     MANUAL[Manual official ZIP] --> CACHE
     CACHE -->|Extract only 3 TSVs| RAW[(DuckDB raw: SUBMISSION / REGISTRANT / FUND_REPORTED_INFO)]
@@ -40,3 +43,8 @@ Cache keys include the parsed semantic manifest, database modification time/size
 all CLI arguments and whether the request is an explanation. Editing YAML requires
 `make parse`; stale YAML is rejected until reparsed. A refresh changes the database
 fingerprint. Cached query files are local and ignored by Git.
+
+The optional Airflow DAG orchestrates the existing batch commands in seven tasks.
+Its separate environment and SQLite metadata live locally under ignored paths.
+It runs manually, serializes runs against DuckDB, and records retries and logs.
+See the [Airflow walkthrough](airflow.md).
