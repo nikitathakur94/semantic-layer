@@ -64,3 +64,29 @@ No dashboard formula was edited. The original expression was restored and repars
 Local, ignored evidence files: `data/ingestion_manifest.json`, `data/model_audit.json`,
 `data/golden_results.json`, `data/setup_verified.log`, `data/refresh.log`,
 `data/test_verified.log`, `data/exercise_verified.log` and `data/app_server.log`.
+
+## Airflow orchestration added on 2026-09-12
+
+Apache Airflow **3.3.1**, standard provider **1.17.0**, Python **3.12**,
+separate `.airflow-venv`, official pinned Python constraints, SQLite metadata and
+LocalExecutor. The DAG is manually triggered and allows one task/run at a time.
+
+- `make airflow-setup`: PASS, including dependency check, metadata migration and DAG import.
+- `make airflow-check`: PASS, seven-task dependency order, retry settings and concurrency limits.
+- `make airflow`: PASS, live scheduler, DAG processor and authenticated web UI on localhost:8080.
+- `make airflow-trigger` / `make airflow-status`: PASS, real scheduler dispatch and recorded run history.
+- Initial scheduler run `manual__2026-09-12T18:01:06.342016+00:00`: **success**, all seven tasks.
+- `learning_retry_demo`: **intentional failure**. A temporary dbt test returned one row.
+  `dbt_tests` attempted twice; golden questions, audit and dashboard checks became
+  `upstream_failed` without executing. The temporary test was removed.
+- `learning_recovered`: **success**, all seven tasks, after restoring the baseline.
+- Original dbt environment: `pip check` and five Python tests still pass.
+
+Each successful DAG run built the three staging views and five mart tables, passed
+26 dbt data tests, passed five golden questions on both SEC and fixture datasets,
+and executed the Streamlit checks. Browser login and the seven-node graph were
+verified. The deliberate red run remains as learning history; the restored run is green.
+
+Ignored local evidence: `.airflow/setup_verified.log`, `.airflow/verification.json`,
+`.airflow/retry_verification.json`, `.airflow/retry_demo.log` and per-task logs under
+`.airflow/logs/dag_id=distribution_dbt/`. No credentials or metadata database are committed.
