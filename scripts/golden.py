@@ -10,7 +10,7 @@ import tempfile
 
 import duckdb
 import pandas as pd
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_series_equal
 
 q = importlib.import_module('lab.query')
 ROOT = q.ROOT
@@ -32,7 +32,13 @@ def compare(actual, expected, name):
     columns = sorted(expected.columns)
     actual = actual.sort_values(keys).reset_index(drop=True) if keys else actual
     expected = expected.sort_values(keys).reset_index(drop=True) if keys else expected
-    assert_frame_equal(actual[columns],expected[columns],check_dtype=False,check_exact=False,rtol=1e-10,atol=0.01,obj=name)
+    for column in columns:
+        left, right = actual[column], expected[column]
+        if column in FLOW + SNAP:
+            left, right = left.astype(float), right.astype(float)
+        tolerance = 1e-12 if column.endswith('ratio') else (0 if column == 'fund_count' else 0.01)
+        assert_series_equal(left,right,check_dtype=False,check_exact=False,
+                            rtol=1e-10,atol=tolerance,obj=f'{name}: {column}')
 
 
 def run_questions(label):

@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 PYTHON ?= python3.12
+PORT ?= 8502
 BIN := $(CURDIR)/.venv/bin
 export DBT_PROFILES_DIR := $(CURDIR)
 export DBT_SEND_ANONYMOUS_USAGE_STATS := false
@@ -32,4 +33,4 @@ test:
 	$(BIN)/python scripts/check_app.py
 
 app:
-	$(BIN)/streamlit run app.py --server.address 127.0.0.1 --server.port 8501 --browser.gatherUsageStats false
+	$(BIN)/streamlit run app.py --server.address 127.0.0.1 --server.port $(PORT) --server.headless true --browser.gatherUsageStats false

@@ -36,7 +36,11 @@ def formatted(number, units):
     if units == 'ratio':
         return f'{number:.1%}'
     if units == 'USD':
-        return f'${number / 1e9:,.2f}B' if abs(number) >= 1e9 else f'${number:,.0f}'
+        sign = '-' if number < 0 else ''
+        amount = abs(number)
+        if amount >= 1e12:
+            return f'{sign}${amount / 1e12:,.2f}T'
+        return f'{sign}${amount / 1e9:,.2f}B' if amount >= 1e9 else f'{sign}${amount:,.0f}'
     return f'{number:,.0f}'
 
 
@@ -80,8 +84,9 @@ try:
     for col, name in zip(st.columns(2), snapshot_metrics):
         col.metric(definitions[name]['label'], formatted(value(snap, name), definitions[name]['config']['meta']['units']))
     st.subheader(f'Monthly flows · {start:%b %Y}–{end:%b %Y}')
-    for col, name in zip(st.columns(5), flow_metrics):
-        col.metric(definitions[name]['label'], formatted(value(flow, name), definitions[name]['config']['meta']['units']))
+    for names in (flow_metrics[:3], flow_metrics[3:]):
+        for col, name in zip(st.columns(len(names)), names):
+            col.metric(definitions[name]['label'], formatted(value(flow, name), definitions[name]['config']['meta']['units']))
     st.caption('A dash means unavailable, including a zero sales denominator. Totals use reported '
                'non-null values; sales and redemptions may have different coverage. Negative inputs remain as filed.')
 
@@ -100,9 +105,10 @@ try:
     st.subheader('Trends')
     left, right = st.columns(2)
     with left:
-        st.caption('Reported net assets by exact report date · populations vary; points are not additive')
+        st.caption('All reported dates: net assets by exact report date · populations vary; points are not additive')
         trend = query(snapshot_metrics, group_by=['metric_time__day'], where=where,
                       order=['metric_time__day'])
+        trend['metric_time__day'] = pd.to_datetime(trend['metric_time__day'])
         st.line_chart(trend.set_index('metric_time__day')[['reported_net_assets']])
         with st.expander('Reporting fund count at each date'):
             st.dataframe(trend, hide_index=True)
@@ -110,6 +116,7 @@ try:
         st.caption('Selected monthly flows · USD')
         trend = query(flow_metrics, group_by=['metric_time__month'], start=start,end=end,
                       where=where,order=['metric_time__month'])
+        trend['metric_time__month'] = pd.to_datetime(trend['metric_time__month'])
         st.line_chart(trend.set_index('metric_time__month')[['gross_sales','redemptions','net_flows_excluding_reinvestments']])
     st.subheader('Fund rankings')
     ranking = st.selectbox('Rank funds by', snapshot_metrics + flow_metrics,
@@ -117,7 +124,9 @@ try:
     rank_start, rank_end = (snapshot,snapshot) if ranking in snapshot_metrics else (start,end)
     ranked = query([ranking],group_by=['fund','fund__fund_name','fund__registrant_name'],
                    start=rank_start,end=rank_end,where=where,order=['-'+ranking],limit=20)
-    st.dataframe(ranked,hide_index=True,width='stretch')
+    st.dataframe(ranked.rename(columns={'fund':'Fund ID','fund__fund_name':'Fund',
+        'fund__registrant_name':'Registrant',ranking:definitions[ranking]['label']}),
+        hide_index=True,width='stretch')
 
     st.subheader('Definitions and generated SQL')
     chosen = st.selectbox('Inspect metric',snapshot_metrics + flow_metrics,

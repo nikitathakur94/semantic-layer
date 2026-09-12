@@ -13,7 +13,7 @@ make test
 make app
 ```
 
-Open [localhost:8501](http://localhost:8501). Stop with Ctrl-C. Allow roughly 1 GB
+Open [localhost:8502](http://localhost:8502). Stop with Ctrl-C. Allow roughly 1 GB
 free disk space plus the Python environment. The first refresh downloads a ~398 MB
 SEC archive; later refreshes reuse it. Choose a snapshot date, flow months, funds,
 registrants or the name-matched cohort in the sidebar. Inspect definitions and SQL
@@ -27,7 +27,7 @@ at the bottom of the dashboard.
 | `make refresh` | Cached SEC ingestion, dbt build/tests, source/model audit |
 | `make refresh ZIP="/absolute/path/2025q4_nport.zip"` | Import a manually downloaded official ZIP |
 | `make test` | dbt tests, Python tests, five golden questions on real + fixture data, Streamlit execution checks |
-| `make app` | Start the dashboard on localhost:8501 |
+| `make app` | Start the dashboard on localhost:8502 |
 | `make parse` | Reparse changed semantic YAML and regenerate the metric catalog |
 | `make smoke` | Repeat the isolated MetricFlow compatibility gate |
 
@@ -76,8 +76,8 @@ mf query --metrics reported_net_assets --explain
   Review missing-data coverage; nulls and zero-denominator ratios are not zero.
 - **CLI suggests upgrading:** retain the lockfile versions; `make setup` verifies
   the tested stack. Upgrade only with a new successful smoke and golden run.
-- **Port 8501 busy:** stop the existing app or use
-  `.venv/bin/streamlit run app.py --server.port 8502`.
+- **Port 8502 busy:** stop the existing app or use
+  `make app PORT=8503`.
 
 ## Exercise: change a metric and watch the dashboard change
 
