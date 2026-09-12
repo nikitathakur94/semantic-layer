@@ -1,0 +1,11 @@
+name: distribution_semantics_lab
+version: '1.0.0'
+config-version: 2
+profile: distribution_semantics_lab
+model-paths: [models]
+test-paths: [tests/dbt]
+models:
+  distribution_semantics_lab:
+    +materialized: table
+    staging:
+      +materialized: view

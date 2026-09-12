@@ -1,0 +1,7 @@
+distribution_semantics_lab:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('LAB_DB_PATH', 'data/lab.duckdb') }}"
+      threads: 1

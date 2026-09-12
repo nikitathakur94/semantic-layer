@@ -1,0 +1,32 @@
+version: 2
+semantic_models:
+  - name: orders
+    model: ref('orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: smoke_amount
+        agg: sum
+        expr: amount
+metrics:
+  - name: smoke_total
+    label: Smoke total
+    type: simple
+    type_params:
+      measure: smoke_amount
+models:
+  - name: metricflow_time_spine
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day

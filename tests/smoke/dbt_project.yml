@@ -1,0 +1,7 @@
+name: metricflow_smoke
+version: '1.0'
+config-version: 2
+profile: distribution_semantics_lab
+model-paths: [models]
+models:
+  +materialized: table
