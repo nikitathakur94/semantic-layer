@@ -1,0 +1,8 @@
+version: 2
+sources:
+  - name: nport
+    schema: raw
+    tables:
+      - name: SUBMISSION
+      - name: REGISTRANT
+      - name: FUND_REPORTED_INFO

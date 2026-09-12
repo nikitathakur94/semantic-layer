@@ -1,0 +1,486 @@
+# Business formulas and quality metrics have one home: this file.
+version: 2
+semantic_models:
+- name: funds
+  description: One unique fund; current name and registrant in this extract. Foreign-to-primary joins
+    only.
+  model: ref('dim_fund')
+  entities:
+  - name: fund
+    type: primary
+    expr: fund_id
+  dimensions:
+  - name: fund_name
+    type: categorical
+  - name: registrant_name
+    type: categorical
+  - name: registrant_cik
+    type: categorical
+  - name: cohort
+    type: categorical
+  - name: missing_series_id
+    type: categorical
+- name: snapshots
+  model: ref('fact_fund_snapshots')
+  defaults:
+    agg_time_dimension: report_date
+  entities:
+  - name: snapshot
+    type: primary
+    expr: snapshot_id
+  - name: fund
+    type: foreign
+    expr: fund_id
+  dimensions:
+  - name: report_date
+    type: time
+    type_params:
+      time_granularity: day
+  measures:
+  - name: net_assets_total
+    expr: net_assets
+    agg: sum
+    non_additive_dimension:
+      name: report_date
+      window_choice: max
+      window_groupings: []
+  - name: funds_count
+    expr: fund_id
+    agg: count_distinct
+    non_additive_dimension:
+      name: report_date
+      window_choice: max
+      window_groupings: []
+  - name: snapshot_observations_measure
+    expr: '1'
+    agg: sum
+    non_additive_dimension:
+      name: report_date
+      window_choice: max
+      window_groupings: []
+  - name: net_assets_present_measure
+    expr: case when net_assets is not null then 1 else 0 end
+    agg: sum
+    non_additive_dimension:
+      name: report_date
+      window_choice: max
+      window_groupings: []
+  - name: negative_net_assets_observations_measure
+    expr: case when questionable_net_assets_sign then 1 else 0 end
+    agg: sum
+    non_additive_dimension:
+      name: report_date
+      window_choice: max
+      window_groupings: []
+  - name: invalid_net_assets_observations_measure
+    expr: case when invalid_net_assets then 1 else 0 end
+    agg: sum
+    non_additive_dimension:
+      name: report_date
+      window_choice: max
+      window_groupings: []
+- name: flows
+  model: ref('fact_monthly_flows')
+  defaults:
+    agg_time_dimension: flow_month
+  entities:
+  - name: flow
+    type: primary
+    expr: flow_id
+  - name: fund
+    type: foreign
+    expr: fund_id
+  dimensions:
+  - name: flow_month
+    type: time
+    type_params:
+      time_granularity: day
+  measures:
+  - name: sales_total
+    expr: sales
+    agg: sum
+  - name: redemptions_total
+    expr: redemptions
+    agg: sum
+  - name: reinvestments_total
+    expr: reinvestments
+    agg: sum
+  - name: flow_observations_measure
+    expr: '1'
+    agg: sum
+  - name: sales_present_measure
+    expr: case when sales is not null then 1 else 0 end
+    agg: sum
+  - name: redemptions_present_measure
+    expr: case when redemptions is not null then 1 else 0 end
+    agg: sum
+  - name: reinvestments_present_measure
+    expr: case when reinvestments is not null then 1 else 0 end
+    agg: sum
+  - name: paired_flows_present_measure
+    expr: case when paired_flow_present then 1 else 0 end
+    agg: sum
+  - name: negative_flow_observations_measure
+    expr: case when questionable_flow_sign then 1 else 0 end
+    agg: sum
+  - name: invalid_flow_observations_measure
+    expr: case when invalid_flow_value then 1 else 0 end
+    agg: sum
+metrics:
+- name: reported_net_assets
+  label: Reported net assets
+  description: Sum of reported NET_ASSETS at the latest report date in the selected period. No carry-forward
+    and no summing snapshots over time. Nulls are unreported; this extract is not corporate AUM.
+  type: simple
+  type_params:
+    measure: net_assets_total
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: USD
+      synonyms:
+      - net assets
+      - reported fund assets
+      certification: educational / not externally certified
+      diagnostic: false
+- name: fund_count
+  label: Fund count
+  description: Distinct fund IDs at the latest report date in the selected period, including funds with
+    missing net assets. Same-date population as reported net assets.
+  type: simple
+  type_params:
+    measure: funds_count
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: funds
+      synonyms:
+      - number of funds
+      - reporting funds
+      certification: educational / not externally certified
+      diagnostic: false
+- name: gross_sales
+  label: Gross sales
+  description: Sum of reported sales of fund shares, including exchanges and excluding dividend/distribution
+    reinvestments. Omnibus netting and acquisitions can be included by filers.
+  type: simple
+  type_params:
+    measure: sales_total
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: USD
+      synonyms:
+      - subscriptions
+      - sales
+      certification: educational / not externally certified
+      diagnostic: false
+- name: redemptions
+  label: Redemptions
+  description: Sum of reported shares redeemed or repurchased, including exchanges. Retain reported signs;
+    negative amounts are flagged, never absolutized.
+  type: simple
+  type_params:
+    measure: redemptions_total
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: USD
+      synonyms:
+      - withdrawals
+      - repurchases
+      certification: educational / not externally certified
+      diagnostic: false
+- name: reinvestments
+  label: Reinvestments
+  description: Sum of shares sold in connection with reinvestments of dividends and distributions, as
+    reported separately from sales.
+  type: simple
+  type_params:
+    measure: reinvestments_total
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: USD
+      synonyms:
+      - dividend reinvestments
+      - distribution reinvestments
+      certification: educational / not externally certified
+      diagnostic: false
+- name: net_flows_excluding_reinvestments
+  label: Net flows excluding reinvestments
+  description: Gross sales total minus redemptions total. Each total uses its non-null observations; partial
+    coverage can differ. If either entire total is missing, result is null. Reinvestments are excluded.
+  type: derived
+  type_params:
+    expr: gross_sales - redemptions
+    metrics:
+    - name: gross_sales
+    - name: redemptions
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: USD
+      synonyms:
+      - net sales
+      - external net flows
+      certification: educational / not externally certified
+      diagnostic: false
+- name: redemptions_to_sales_ratio
+  label: Redemptions-to-sales ratio
+  description: Total redemptions divided by total gross sales, never an average of fund ratios. Zero or
+    missing denominator produces null. Partial numerator and denominator coverage can differ.
+  type: ratio
+  type_params:
+    numerator: redemptions
+    denominator: gross_sales
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: ratio
+      synonyms:
+      - redemption pressure
+      - outflow to inflow ratio
+      certification: educational / not externally certified
+      diagnostic: false
+- name: snapshot_observations
+  label: Snapshot observations
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: snapshot_observations_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: net_assets_present
+  label: Net assets present
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: net_assets_present_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: negative_net_assets_observations
+  label: Negative net assets observations
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: negative_net_assets_observations_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: invalid_net_assets_observations
+  label: Invalid net assets observations
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: invalid_net_assets_observations_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: flow_observations
+  label: Flow observations
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: flow_observations_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: sales_present
+  label: Sales present
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: sales_present_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: redemptions_present
+  label: Redemptions present
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: redemptions_present_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: reinvestments_present
+  label: Reinvestments present
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: reinvestments_present_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: paired_flows_present
+  label: Paired flows present
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: paired_flows_present_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: negative_flow_observations
+  label: Negative flow observations
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: negative_flow_observations_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: invalid_flow_observations
+  label: Invalid flow observations
+  description: Observation count for data-quality coverage; absent values are not zero dollar amounts.
+  type: simple
+  type_params:
+    measure: invalid_flow_observations_measure
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: observations
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: net_assets_coverage
+  label: Net assets coverage
+  description: Non-null observation count divided by observed rows. Measures field completeness, not coverage
+    of the fund industry or corporate family.
+  type: ratio
+  type_params:
+    numerator: net_assets_present
+    denominator: snapshot_observations
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 report date; latest date within each requested time bucket"
+      units: ratio
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: sales_coverage
+  label: Sales coverage
+  description: Non-null observation count divided by observed rows. Measures field completeness, not coverage
+    of the fund industry or corporate family.
+  type: ratio
+  type_params:
+    numerator: sales_present
+    denominator: flow_observations
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: ratio
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: redemptions_coverage
+  label: Redemptions coverage
+  description: Non-null observation count divided by observed rows. Measures field completeness, not coverage
+    of the fund industry or corporate family.
+  type: ratio
+  type_params:
+    numerator: redemptions_present
+    denominator: flow_observations
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: ratio
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: reinvestments_coverage
+  label: Reinvestments coverage
+  description: Non-null observation count divided by observed rows. Measures field completeness, not coverage
+    of the fund industry or corporate family.
+  type: ratio
+  type_params:
+    numerator: reinvestments_present
+    denominator: flow_observations
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: ratio
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true
+- name: paired_flows_coverage
+  label: Paired flows coverage
+  description: Non-null observation count divided by observed rows. Measures field completeness, not coverage
+    of the fund industry or corporate family.
+  type: ratio
+  type_params:
+    numerator: paired_flows_present
+    denominator: flow_observations
+  config:
+    meta:
+      owner: Distribution Analytics (lab role)
+      grain: "fund \xD7 calendar month; additive across selected months"
+      units: ratio
+      synonyms: []
+      certification: educational / not externally certified
+      diagnostic: true

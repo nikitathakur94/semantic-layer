@@ -1,0 +1,65 @@
+version: 2
+models:
+- name: stg_submission
+  columns:
+  - name: accession_number
+    tests:
+    - unique
+    - not_null
+- name: stg_registrant
+  columns:
+  - name: accession_number
+    tests:
+    - unique
+    - not_null
+- name: stg_fund_reported_info
+  columns:
+  - name: accession_number
+    tests:
+    - unique
+    - not_null
+    - relationships:
+        to: ref('stg_submission')
+        field: accession_number
+    - relationships:
+        to: ref('stg_registrant')
+        field: accession_number
+- name: dim_fund
+  columns:
+  - name: fund_id
+    tests:
+    - unique
+    - not_null
+- name: fact_fund_snapshots
+  columns:
+  - name: snapshot_id
+    tests:
+    - unique
+    - not_null
+  - name: fund_id
+    tests:
+    - not_null
+    - relationships:
+        to: ref('dim_fund')
+        field: fund_id
+- name: fact_monthly_flows
+  columns:
+  - name: flow_id
+    tests:
+    - unique
+    - not_null
+  - name: fund_id
+    tests:
+    - not_null
+    - relationships:
+        to: ref('dim_fund')
+        field: fund_id
+- name: metricflow_time_spine
+  time_spine:
+    standard_granularity_column: date_day
+  columns:
+  - name: date_day
+    granularity: day
+    tests:
+    - unique
+    - not_null
